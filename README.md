@@ -6,6 +6,10 @@ An implementation of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_
 
 ![Image of Barnsley fern](./images/output.png)
 
+## Prerequisites
+
+Install [wasm-pack](https://github.com/rustwasm/wasm-pack).
+
 ## Compile
 
 ```bash
