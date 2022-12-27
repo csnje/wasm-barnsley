@@ -4,6 +4,8 @@
 
 An implementation of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_fern) in Rust WebAssembly.
 
+![Image of Barnsley fern](./images/output.png)
+
 ## Compile
 
 ```bash
