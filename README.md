@@ -25,4 +25,4 @@ python -m SimpleHTTPServer
 python3 -m http.server
 ```
 
-Run in a browser at [localhost:8000](localhost:8000).
+Run in a browser at [http::localhost:8000](http://localhost:8000).
