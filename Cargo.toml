@@ -1,6 +1,6 @@
 [package]
 name = "wasm-barnsley"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Chris Snape-Jenkinson"]
 edition = "2021"
 license = "MIT"
@@ -9,7 +9,6 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-gloo-render = "0.1"
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features=["CanvasRenderingContext2d", "Document", "Element", "HtmlCanvasElement", "Window"] }

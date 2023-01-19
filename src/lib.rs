@@ -1,12 +1,11 @@
 // A WebAssembly implementation of the Barnsley fern.
 
-use gloo_render::{request_animation_frame, AnimationFrame};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 
-const CANVAS_WIDTH: u32 = 600;
-const CANVAS_HEIGHT: u32 = 600;
+const CANVAS_WIDTH: u32 = 800;
+const CANVAS_HEIGHT: u32 = 800;
 
 // Range of fractal
 const MIN_X: f64 = -2.1820;
@@ -14,11 +13,11 @@ const MAX_X: f64 = 2.6558;
 const MIN_Y: f64 = 0.0;
 const MAX_Y: f64 = 9.9983;
 
-const COLOR: &str = "rgba(0,127,0,0.2)";
-const RADIUS: f64 = 0.005;
+const FILL_STYLE: &str = "rgba(0,127,0,0.2)";
+const RADIUS: f64 = 0.002;
 
-// Number of points to add per animation frame
-const POINTS_PER_FRAME: usize = 500;
+// Number of points iterations animation frame
+const ITERATIONS_PER_FRAME: usize = 1000;
 
 struct Position {
     x: f64,
@@ -26,7 +25,34 @@ struct Position {
 }
 
 impl Position {
-    pub fn draw(&self, context: &CanvasRenderingContext2d) {
+    fn update(&mut self) {
+        let random = js_sys::Math::random();
+        let position = if random < 0.01 {
+            Position {
+                x: 0.0,
+                y: 0.16 * self.y,
+            }
+        } else if random < 0.86 {
+            Position {
+                x: 0.85 * self.x + 0.04 * self.y,
+                y: -0.04 * self.x + 0.85 * self.y + 1.6,
+            }
+        } else if random < 0.93 {
+            Position {
+                x: 0.2 * self.x - 0.26 * self.y,
+                y: 0.23 * self.x + 0.22 * self.y + 1.6,
+            }
+        } else {
+            Position {
+                x: -0.15 * self.x + 0.28 * self.y,
+                y: 0.26 * self.x + 0.24 * self.y + 0.44,
+            }
+        };
+        self.x = position.x;
+        self.y = position.y;
+    }
+
+    fn draw(&self, context: &CanvasRenderingContext2d) {
         context.begin_path();
         context
             .arc(self.x, self.y, RADIUS, 0.0, std::f64::consts::TAU)
@@ -38,16 +64,23 @@ impl Position {
 struct Data {
     position: Position,
     context: CanvasRenderingContext2d,
-    request_animation_frame_handle: AnimationFrame,
-    _timestamp: f64,
 }
 
 static mut DATA: Option<Data> = None;
 
+fn window() -> web_sys::Window {
+    web_sys::window().expect("should have window")
+}
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register request animation frame callback");
+}
+
 #[wasm_bindgen(start)]
 pub fn main() -> Result<(), JsValue> {
-    let window = web_sys::window().expect("should have window");
-    let document = window.document().expect("should have window");
+    let document = window().document().expect("should have document");
 
     let canvas = document
         .create_element("canvas")?
@@ -65,57 +98,28 @@ pub fn main() -> Result<(), JsValue> {
         -(CANVAS_WIDTH as f64) / (MAX_Y - MIN_Y),
     )?;
     context.translate(-MIN_X, -MAX_Y)?;
-    context.set_fill_style(&JsValue::from_str(COLOR));
-
-    let position = Position { x: 0.0, y: 0.0 };
-    position.draw(&context);
-
-    let request_animation_frame_handle = request_animation_frame(on_animation_frame);
+    context.set_fill_style(&JsValue::from_str(FILL_STYLE));
 
     unsafe {
         DATA = Some(Data {
-            position,
+            position: Position { x: 0.0, y: 0.0 },
             context,
-            request_animation_frame_handle,
-            _timestamp: 0.0,
         });
     }
 
+    let f = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let g = f.clone();
+    *g.borrow_mut() = Some(Closure::new(move || {
+        let data = unsafe { DATA.as_mut().unwrap() };
+
+        for _ in 0..ITERATIONS_PER_FRAME {
+            data.position.update();
+            data.position.draw(&data.context);
+        }
+
+        request_animation_frame(f.borrow().as_ref().unwrap());
+    }));
+    request_animation_frame(g.borrow().as_ref().unwrap());
+
     Ok(())
-}
-
-fn update(position: &Position) -> Position {
-    let random = js_sys::Math::random();
-    if random < 0.01 {
-        Position {
-            x: 0.0,
-            y: 0.16 * position.y,
-        }
-    } else if random < 0.86 {
-        Position {
-            x: 0.85 * position.x + 0.04 * position.y,
-            y: -0.04 * position.x + 0.85 * position.y + 1.6,
-        }
-    } else if random < 0.93 {
-        Position {
-            x: 0.2 * position.x - 0.26 * position.y,
-            y: 0.23 * position.x + 0.22 * position.y + 1.6,
-        }
-    } else {
-        Position {
-            x: -0.15 * position.x + 0.28 * position.y,
-            y: 0.26 * position.x + 0.24 * position.y + 0.44,
-        }
-    }
-}
-
-fn on_animation_frame(_timestamp: f64) {
-    let data = unsafe { DATA.as_mut().unwrap() };
-
-    for _ in 0..POINTS_PER_FRAME {
-        data.position = update(&data.position);
-        data.position.draw(&data.context);
-    }
-
-    data.request_animation_frame_handle = request_animation_frame(on_animation_frame);
 }
