@@ -2,7 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::CanvasRenderingContext2d;
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, Window};
 
 const CANVAS_WIDTH: u32 = 800;
 const CANVAS_HEIGHT: u32 = 800;
@@ -14,9 +14,9 @@ const MIN_Y: f64 = 0.0;
 const MAX_Y: f64 = 9.9983;
 
 const FILL_STYLE: &str = "rgba(0,127,0,0.2)";
-const RADIUS: f64 = 0.002;
+const ARC_RADIUS: f64 = 0.002;
 
-// Number of points iterations animation frame
+// Number of iterations per animation frame
 const ITERATIONS_PER_FRAME: usize = 1000;
 
 struct Position {
@@ -55,20 +55,13 @@ impl Position {
     fn draw(&self, context: &CanvasRenderingContext2d) {
         context.begin_path();
         context
-            .arc(self.x, self.y, RADIUS, 0.0, std::f64::consts::TAU)
+            .arc(self.x, self.y, ARC_RADIUS, 0.0, std::f64::consts::TAU)
             .unwrap();
         context.fill();
     }
 }
 
-struct Data {
-    position: Position,
-    context: CanvasRenderingContext2d,
-}
-
-static mut DATA: Option<Data> = None;
-
-fn window() -> web_sys::Window {
+fn window() -> Window {
     web_sys::window().expect("should have window")
 }
 
@@ -84,7 +77,7 @@ pub fn main() -> Result<(), JsValue> {
 
     let canvas = document
         .create_element("canvas")?
-        .dyn_into::<web_sys::HtmlCanvasElement>()?;
+        .dyn_into::<HtmlCanvasElement>()?;
     canvas.set_width(CANVAS_WIDTH);
     canvas.set_height(CANVAS_HEIGHT);
     document.body().unwrap().append_child(&canvas)?;
@@ -93,6 +86,7 @@ pub fn main() -> Result<(), JsValue> {
         .get_context("2d")?
         .expect("should have 2d context")
         .dyn_into::<CanvasRenderingContext2d>()?;
+
     context.scale(
         CANVAS_WIDTH as f64 / (MAX_X - MIN_X),
         -(CANVAS_WIDTH as f64) / (MAX_Y - MIN_Y),
@@ -100,23 +94,15 @@ pub fn main() -> Result<(), JsValue> {
     context.translate(-MIN_X, -MAX_Y)?;
     context.set_fill_style(&JsValue::from_str(FILL_STYLE));
 
-    unsafe {
-        DATA = Some(Data {
-            position: Position { x: 0.0, y: 0.0 },
-            context,
-        });
-    }
+    let mut position = std::cell::RefCell::new(Position { x: 0.0, y: 0.0 });
 
     let f = std::rc::Rc::new(std::cell::RefCell::new(None));
     let g = f.clone();
     *g.borrow_mut() = Some(Closure::new(move || {
-        let data = unsafe { DATA.as_mut().unwrap() };
-
         for _ in 0..ITERATIONS_PER_FRAME {
-            data.position.update();
-            data.position.draw(&data.context);
+            position.get_mut().update();
+            position.get_mut().draw(&context);
         }
-
         request_animation_frame(f.borrow().as_ref().unwrap());
     }));
     request_animation_frame(g.borrow().as_ref().unwrap());
