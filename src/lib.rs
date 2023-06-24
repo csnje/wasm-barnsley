@@ -1,8 +1,6 @@
 // A WebAssembly implementation of the Barnsley fern.
 
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, Window};
+use wasm_bindgen::{prelude::*, JsCast};
 
 const CANVAS_WIDTH: u32 = 800;
 const CANVAS_HEIGHT: u32 = 800;
@@ -52,7 +50,7 @@ impl Position {
         self.y = position.y;
     }
 
-    fn draw(&self, context: &CanvasRenderingContext2d) {
+    fn draw(&self, context: &web_sys::CanvasRenderingContext2d) {
         context.begin_path();
         context
             .arc(self.x, self.y, ARC_RADIUS, 0.0, std::f64::consts::TAU)
@@ -61,7 +59,7 @@ impl Position {
     }
 }
 
-fn window() -> Window {
+fn window() -> web_sys::Window {
     web_sys::window().expect("should have window")
 }
 
@@ -77,7 +75,7 @@ pub fn main() -> Result<(), JsValue> {
 
     let canvas = document
         .create_element("canvas")?
-        .dyn_into::<HtmlCanvasElement>()?;
+        .dyn_into::<web_sys::HtmlCanvasElement>()?;
     canvas.set_width(CANVAS_WIDTH);
     canvas.set_height(CANVAS_HEIGHT);
     document.body().unwrap().append_child(&canvas)?;
@@ -85,7 +83,7 @@ pub fn main() -> Result<(), JsValue> {
     let context = canvas
         .get_context("2d")?
         .expect("should have 2d context")
-        .dyn_into::<CanvasRenderingContext2d>()?;
+        .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
     context.scale(
         CANVAS_WIDTH as f64 / (MAX_X - MIN_X),
