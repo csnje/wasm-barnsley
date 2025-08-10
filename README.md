@@ -1,23 +1,19 @@
-# Barnsley fern
+# wasm-barnsley
 
 ## About
 
-An implementation of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_fern) in **Rust** **WebAssembly**.
+An implementation in **Rusr** **WebAssembly** and **JavaScript** of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_fern).
 
 ![Image of Barnsley fern](./images/output.png)
 
 ## Prerequisites
 
-Install [**Rust**](https://www.rust-lang.org/) and [**wasm-pack**](https://github.com/rustwasm/wasm-pack).
+A [**Rust**](https://www.rust-lang.org/) installation.
 
 ## Build
 
-```bash
-wasm-pack build --target web
-```
-or optimised for release
-```bash
-wasm-pack build --target web --release
+```sh
+cargo build --target=wasm32-unknown-unknown --release
 ```
 
 ## Run

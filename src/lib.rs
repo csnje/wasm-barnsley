@@ -1,109 +1,82 @@
 // A WebAssembly implementation of the Barnsley fern.
 
-use wasm_bindgen::{prelude::*, JsCast};
-
-const CANVAS_WIDTH: u32 = 800;
-const CANVAS_HEIGHT: u32 = 800;
-
-// Range of fractal
-const MIN_X: f64 = -2.1820;
-const MAX_X: f64 = 2.6558;
-const MIN_Y: f64 = 0.0;
-const MAX_Y: f64 = 9.9983;
-
-const FILL_STYLE: &str = "rgba(0,127,0,0.2)";
-const ARC_RADIUS: f64 = 0.002;
-
-// Number of iterations per animation frame
-const ITERATIONS_PER_FRAME: usize = 1000;
-
-struct Position {
-    x: f64,
-    y: f64,
-}
-
-impl Position {
-    fn update(&mut self) {
-        let random = js_sys::Math::random();
-        let position = if random < 0.01 {
-            Position {
-                x: 0.0,
-                y: 0.16 * self.y,
-            }
-        } else if random < 0.86 {
-            Position {
-                x: 0.85 * self.x + 0.04 * self.y,
-                y: -0.04 * self.x + 0.85 * self.y + 1.6,
-            }
-        } else if random < 0.93 {
-            Position {
-                x: 0.2 * self.x - 0.26 * self.y,
-                y: 0.23 * self.x + 0.22 * self.y + 1.6,
-            }
-        } else {
-            Position {
-                x: -0.15 * self.x + 0.28 * self.y,
-                y: 0.26 * self.x + 0.24 * self.y + 0.44,
-            }
-        };
-        self.x = position.x;
-        self.y = position.y;
-    }
-
-    fn draw(&self, context: &web_sys::CanvasRenderingContext2d) {
-        context.begin_path();
-        context
-            .arc(self.x, self.y, ARC_RADIUS, 0.0, std::f64::consts::TAU)
-            .unwrap();
-        context.fill();
-    }
-}
-
-fn window() -> web_sys::Window {
-    web_sys::window().expect("should have window")
-}
-
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register request animation frame callback");
-}
-
-#[wasm_bindgen(start)]
-pub fn main() -> Result<(), JsValue> {
-    let document = window().document().expect("should have document");
-
-    let canvas = document
-        .create_element("canvas")?
-        .dyn_into::<web_sys::HtmlCanvasElement>()?;
-    canvas.set_width(CANVAS_WIDTH);
-    canvas.set_height(CANVAS_HEIGHT);
-    document.body().unwrap().append_child(&canvas)?;
-
-    let context = canvas
-        .get_context("2d")?
-        .expect("should have 2d context")
-        .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
-
-    context.scale(
-        CANVAS_WIDTH as f64 / (MAX_X - MIN_X),
-        -(CANVAS_WIDTH as f64) / (MAX_Y - MIN_Y),
-    )?;
-    context.translate(-MIN_X, -MAX_Y)?;
-    context.set_fill_style(&JsValue::from_str(FILL_STYLE));
-
-    let mut position = std::cell::RefCell::new(Position { x: 0.0, y: 0.0 });
-
-    let f = std::rc::Rc::new(std::cell::RefCell::new(None));
-    let g = f.clone();
-    *g.borrow_mut() = Some(Closure::new(move || {
-        for _ in 0..ITERATIONS_PER_FRAME {
-            position.get_mut().update();
-            position.get_mut().draw(&context);
+mod math {
+    mod math_js {
+        #[link(wasm_import_module = "Math")]
+        unsafe extern "C" {
+            pub fn random() -> f64;
         }
-        request_animation_frame(f.borrow().as_ref().unwrap());
-    }));
-    request_animation_frame(g.borrow().as_ref().unwrap());
+    }
 
-    Ok(())
+    pub fn random() -> f64 {
+        unsafe { math_js::random() }
+    }
+}
+
+/// Return pointer to allocted memory of specified size.
+#[unsafe(no_mangle)]
+pub extern "C" fn create_array(size: usize) -> *mut f64 {
+    let mut data = Vec::with_capacity(size);
+    let ptr = data.as_mut_ptr();
+    std::mem::forget(data);
+    ptr
+}
+
+/// Return the minimum x-coordinate value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn min_x() -> f64 {
+    -2.1820
+}
+
+/// Return the maximum x-coordinate value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn max_x() -> f64 {
+    2.6558
+}
+
+/// Return the minimum y-coordinate value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn min_y() -> f64 {
+    0.0
+}
+
+/// Return the maximum y-coordinate value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn max_y() -> f64 {
+    9.9983
+}
+
+/// Get the next set of points for the Barnsley fern given a starting point.
+///
+/// # Safety
+///
+/// The memory pointers must previously have been allocated for the specified size.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn points(
+    mut xpt_prev: f64,
+    mut ypt_prev: f64,
+    xpts_ptr: *mut f64,
+    ypts_ptr: *mut f64,
+    size: usize,
+) {
+    let xpts = unsafe { std::slice::from_raw_parts_mut(xpts_ptr, size) };
+    let ypts = unsafe { std::slice::from_raw_parts_mut(ypts_ptr, size) };
+
+    for (xpt, ypt) in std::iter::zip(xpts, ypts) {
+        let random = math::random();
+        if random < 0.01 {
+            *xpt = 0.0;
+            *ypt = 0.16 * ypt_prev;
+        } else if random < 0.86 {
+            *xpt = 0.85 * xpt_prev + 0.04 * ypt_prev;
+            *ypt = -0.04 * xpt_prev + 0.85 * ypt_prev + 1.6;
+        } else if random < 0.93 {
+            *xpt = 0.2 * xpt_prev - 0.26 * ypt_prev;
+            *ypt = 0.23 * xpt_prev + 0.22 * ypt_prev + 1.6;
+        } else {
+            *xpt = -0.15 * xpt_prev + 0.28 * ypt_prev;
+            *ypt = 0.26 * xpt_prev + 0.24 * ypt_prev + 0.44;
+        }
+        (xpt_prev, ypt_prev) = (*xpt, *ypt);
+    }
 }
