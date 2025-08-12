@@ -2,7 +2,7 @@
 
 ## About
 
-An implementation in **Rusr** **WebAssembly** and **JavaScript** of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_fern).
+An implementation in **Rust** **WebAssembly** and **JavaScript** of the [Barnsley fern](https://en.wikipedia.org/wiki/Barnsley_fern).
 
 ![Image of Barnsley fern](./images/output.png)
 
