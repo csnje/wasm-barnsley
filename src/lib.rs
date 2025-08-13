@@ -1,4 +1,4 @@
-// A WebAssembly implementation of the Barnsley fern.
+// An implementation of the Barnsley fern.
 
 mod math {
     mod math_js {
@@ -13,7 +13,7 @@ mod math {
     }
 }
 
-/// Return pointer to allocted memory of specified size.
+/// Return pointer to allocated memory of specified size.
 #[unsafe(no_mangle)]
 pub extern "C" fn create_array(size: usize) -> *mut f64 {
     let mut data = Vec::with_capacity(size);
